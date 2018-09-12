@@ -27,12 +27,12 @@ def main():
         precisions_auc = np.zeros(nv * evaluation.n_subseq)
         ious = np.zeros(nv * evaluation.n_subseq)
         lengths = np.zeros(nv * evaluation.n_subseq)
-        for i in range(nv):
+        for i in range(nv): # -- Iterate through all videos 
             print('video: %d' % (i + 1))
             gt, frame_name_list, frame_sz, n_frames = _init_video(env, evaluation, videos_list[i])
             starts = np.rint(np.linspace(0, n_frames - 1, evaluation.n_subseq + 1))
             starts = starts[0:evaluation.n_subseq]
-            for j in range(evaluation.n_subseq):
+            for j in range(evaluation.n_subseq): # -- Iterate through a single video
                 start_frame = int(starts[j])
                 gt_ = gt[start_frame:, :]
                 frame_name_list_ = frame_name_list[start_frame:]
@@ -42,7 +42,7 @@ def main():
                 #                                                      target_w, target_h, final_score_sz, filename,
                 #                                                      image, templates_z, scores, start_frame)
                 bboxes, speed[idx] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y,
-                                             target_w, target_h, final_score_sz, siam, start_frame)
+                                             target_w, target_h, final_score_sz, siam, start_frame) # -- here is where tracker.py is called 
                 lengths[idx], precisions[idx], precisions_auc[idx], ious[idx] = _compile_results(gt_, bboxes, evaluation.dist_threshold)
                 print(str(i) + ' -- ' + videos_list[i] + \
                 ' -- Precision: ' + "%.2f" % precisions[idx] + \

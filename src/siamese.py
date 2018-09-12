@@ -44,7 +44,7 @@ class SiameseNet(nn.Module):
         self.conv5 = nn.Sequential(
             nn.Conv2d(384, 32, 3, 1, groups=2)
         )
-        self.branch = nn.Sequential(
+        self.branch = nn.Sequential( # -- calling self.branch will do a forward pass of the net
             self.conv1,
             self.conv2,
             self.conv3,
@@ -75,7 +75,7 @@ class SiameseNet(nn.Module):
     def forward(self, z, x):
         assert z.size()[:2] == x.size()[:2]
 
-        z = self.branch(z)
+        z = self.branch(z) 
         x = self.branch(x)
 
         out = self.xcorr(z, x)
@@ -116,7 +116,7 @@ class SiameseNet(nn.Module):
         avg_chan = ImageStat.Stat(image).mean
         frame_padded_x, npad_x = pad_frame(image, image.size, pos_x, pos_y, scaled_search_area[2], avg_chan)
         x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x, pos_y, scaled_search_area[0], scaled_search_area[1], scaled_search_area[2], design.search_sz)
-        template_x = self.branch(Variable(x_crops))
+        template_x = self.branch(Variable(x_crops)) # -- Where the actual conv net is called 
         template_z = template_z.repeat(template_x.size(0), 1, 1, 1)
         scores = self.xcorr(template_z, template_x)
         scores = self.bn_adjust(scores)
