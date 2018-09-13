@@ -72,11 +72,11 @@ class SiameseNet(nn.Module):
             for m in self.modules():
                 m.training = False
 
-    def forward(self, z, x):
+    def forward(self, z, x): # -- z = exemplar image, x = candidate image 
         assert z.size()[:2] == x.size()[:2]
 
-        z = self.branch(z) 
-        x = self.branch(x)
+        z = self.branch(z) # -- forward pass for exemplar image
+        x = self.branch(x) # -- forward pass for candidate image 
 
         out = self.xcorr(z, x)
         out = self.bn_adjust(out)
