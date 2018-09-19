@@ -86,7 +86,7 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
             #         templates_z: np.squeeze(templates_z_),
             #         filename: frame_name_list[i],
             #     }, **run_opts)
-            image_, scores_ = siam.get_scores(pos_x, pos_y, scaled_search_area, templates_z_, frame_name_list[i], design, final_score_sz)
+            image_, scores_ = siam.get_scores(pos_x, pos_y, scaled_search_area, templates_z_, frame_name_list[i], design, final_score_sz) # -- Call the conv net
             scores_ = np.squeeze(scores_)
             # penalize change of scale
             scores_[0,:,:] = hp.scale_penalty*scores_[0,:,:]

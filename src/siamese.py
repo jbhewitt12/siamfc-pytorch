@@ -52,9 +52,14 @@ class SiameseNet(nn.Module):
             self.conv5
         )
         self.bn_adjust = nn.BatchNorm2d(1)
+        # self.bn_adjust.cuda()
+
         self._initialize_weights()
 
         self.cuda = torch.cuda.is_available()
+        print('self.cuda:')
+        print(self.cuda)
+        print(torch.__version__)
         if net is not None:
             net_path = os.path.join(root_pretrained, net)
             if os.path.splitext(net_path)[1] == '.mat':
@@ -90,15 +95,51 @@ class SiameseNet(nn.Module):
         
         return torch.cat(out, dim=0)
 
+    # def _initialize_weights(m):
+    #     for m in self.modules():
+    #         if isinstance(m, nn.Conv2d):
+    #             n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+    #             m.weight.data.normal_(0, math.sqrt(2. / n))
+    #             # m = torch.Tensor(m)
+    #             # m = m.cuda()
+    #         elif isinstance(m, nn.BatchNorm2d):
+    #             m.weight.data.fill_(1)
+    #             m.bias.data.zero_()
+
     def _initialize_weights(self):
+        # classname = m.__class__.__name__
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                # m.weight.data floattensor
+                stddev=.01
+                const = 0.1
+                weight_shape, bias_shape = m.weight.data.numpy().shape, m.bias.data.numpy().shape
+                out, inn, h, w = weight_shape[0], weight_shape[1], weight_shape[2], weight_shape[3]
+                # clip normal init
+                weights = np.random.normal(size=(out, inn, h, w), scale=stddev)
+                weights = np.clip(weights, a_min=-2*stddev, a_max=2*stddev)
+                bias = np.full((out,), const)
+                #
+                weights = torch.Tensor(weights)
+                bias = torch.Tensor(bias)
+                
+                weights, bias = weights.cuda(), bias.cuda()
+                m.weight.data = weights
+                m.bias.data = bias
             elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-
+                # weight: gamma
+                # bias: beta
+                weight_shape, bias_shape = m.weight.data.numpy().shape, m.bias.data.numpy().shape
+                ch = weight_shape[0]
+                # const init
+                weights=np.ones((ch,))
+                bias = np.zeros((ch,))
+                #
+                weights, bias = torch.Tensor(weights), torch.Tensor(bias)
+                
+                weights, bias = weights.cuda(), bias.cuda()
+                m.weight.data = weights
+                m.bias.data = bias
 
     def get_template_z(self, pos_x, pos_y, z_sz, image, 
                        design):
@@ -107,7 +148,7 @@ class SiameseNet(nn.Module):
         avg_chan = ImageStat.Stat(image).mean
         frame_padded_z, npad_z = pad_frame(image, image.size, pos_x, pos_y, z_sz, avg_chan)
         z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x, pos_y, z_sz, design.exemplar_sz)
-        template_z = self.branch(Variable(z_crops))
+        template_z = self.branch(Variable(z_crops.cuda()))
         return image, template_z
 
     def get_scores(self, pos_x, pos_y, scaled_search_area, template_z, filename,
@@ -116,7 +157,7 @@ class SiameseNet(nn.Module):
         avg_chan = ImageStat.Stat(image).mean
         frame_padded_x, npad_x = pad_frame(image, image.size, pos_x, pos_y, scaled_search_area[2], avg_chan)
         x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x, pos_y, scaled_search_area[0], scaled_search_area[1], scaled_search_area[2], design.search_sz)
-        template_x = self.branch(Variable(x_crops)) # -- Where the actual conv net is called 
+        template_x = self.branch(Variable(x_crops.cuda())) # -- Where the actual conv net is called 
         template_z = template_z.repeat(template_x.size(0), 1, 1, 1)
         scores = self.xcorr(template_z, template_x)
         scores = self.bn_adjust(scores)
@@ -129,7 +170,8 @@ class SiameseNet(nn.Module):
 
 def load_siamfc_from_matconvnet(net_path, model):
     params_names_list, params_values_list = load_matconvnet(net_path)
-
+    # print('params_names_list')
+    # print(params_names_list)
     params_values_list = [torch.from_numpy(p) for p in params_values_list]
     for l, p in enumerate(params_values_list):
         param_name = params_names_list[l]
@@ -145,6 +187,8 @@ def load_siamfc_from_matconvnet(net_path, model):
         model.conv4,
         model.conv5
     )
+    net.cuda()
+
 
     for l, layer in enumerate(net):
         layer[0].weight.data[:] = params_values_list[params_names_list.index('br_conv%df' % (l + 1))]
@@ -155,6 +199,9 @@ def load_siamfc_from_matconvnet(net_path, model):
             layer[1].bias.data[:] = params_values_list[params_names_list.index('br_bn%db' % (l + 1))]
 
             bn_moments = params_values_list[params_names_list.index('br_bn%dx' % (l + 1))]
+            # print('bn_moments[:,0]')
+            # print(bn_moments[:,0])
+            # bn = torch.Tensor(bn_moments[:,0]).cuda()
             layer[1].running_mean[:] = bn_moments[:,0]
             layer[1].running_var[:] = bn_moments[:,1] ** 2
         else:
@@ -162,6 +209,7 @@ def load_siamfc_from_matconvnet(net_path, model):
             model.bn_adjust.bias.data[:] = params_values_list[params_names_list.index('fin_adjust_bnb')]
 
             bn_moments = params_values_list[params_names_list.index('fin_adjust_bnx')]
+            # bn0 = bn_moments[0].cuda()
             model.bn_adjust.running_mean[:] = bn_moments[0]
             model.bn_adjust.running_var[:] = bn_moments[1] ** 2
 
