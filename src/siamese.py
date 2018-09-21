@@ -55,6 +55,8 @@ class SiameseNet(nn.Module):
         self._initialize_weights()
 
         self.cuda = torch.cuda.is_available()
+        print('cuda:')
+        print(self.cuda)
         if net is not None:
             net_path = os.path.join(root_pretrained, net)
             if os.path.splitext(net_path)[1] == '.mat':

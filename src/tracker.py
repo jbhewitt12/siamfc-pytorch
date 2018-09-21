@@ -68,6 +68,7 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
 
         # Get an image from the queue
         for i in range(1, num_frames):
+            t_start_frame = time.time()
             if i % 10 == 0:
                 print('frame: %d' % (i + 1))
 
@@ -120,9 +121,12 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
             
             # update template patch size
             z_sz = (1 - hp.scale_lr) * z_sz + hp.scale_lr * scaled_exemplar[new_scale_id]
-            
+            t_frame_elapsed = time.time() - t_start_frame
+            print('t_frame_elapsed:')
+            print(t_frame_elapsed)
+
             if run.visualization:
-                show_frame(image_, bboxes[i,:], 1)
+                show_frame(image_, bboxes[i,:], 1) # -- here is where the output bbox is visualized 
 
         t_elapsed = time.time() - t_start
         speed = num_frames / t_elapsed
